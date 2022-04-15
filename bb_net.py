@@ -7,16 +7,16 @@ import numpy as np
 
 torch.set_default_dtype(torch.float32)
 
-class BBNet(nn.Module):
+class BoundingBoxNet(nn.Module):
     def __init__(self, name='bb_net'):
-        super(BBNet, self).__init__()
+        super(BoundingBoxNet, self).__init__()
         self.name = name
         self._device = TrainingConstants.DEVICE
 
         # TODO: idk the input size right now so putting 1000.
-        self.bb1 = nn.Linear(1000, 1000)
-        self.bb2 = nn.Linear(1000, 512)
-        self.bb3 = nn.Linear(512, 4)
+        self.bb1 = nn.Linear(128, 128)
+        self.bb2 = nn.Linear(128, 64)
+        self.bb3 = nn.Linear(64, 4)
 
     def forward(self, x):
         x = x.view(x.shape[0], -1)

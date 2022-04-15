@@ -16,17 +16,12 @@ class FeatureNet(nn.Module):
 
         # TODO: may need to downsample input images.
 
-        # Here we are transposing the images to (Channel, Width, Height)
-        scene_mean = np.transpose(scene_mean, (2, 0, 1))
-        scene_std = np.transpose(scene_std, (2, 0, 1))
-        target_mean = np.transpose(target_mean, (2, 0, 1))
-        target_std = np.transpose(target_std, (2, 0, 1))
-        
         self.scene_mean = scene_mean
         self.scene_std = scene_std
         self.target_mean = target_mean
         self.target_std = target_std
 
+        # TODO: FPN?
         resnet18_scene = torchvision.models.resnet18(pretrained=True)
         self.scene_features = nn.Sequential(
             resnet18_scene.conv1,

@@ -120,6 +120,7 @@ if __name__ == '__main__':
 
     feature_net = FeatureNet(dataset.scene_mean, dataset.scene_std, dataset.target_mean, dataset.target_std, name=TrainingConstants.FEATURE_NET_NAME)
     bb_net = BoundingBoxNet(name=TrainingConstants.BOUNDING_BOX_NET_NAME)
+    print(bb_net)
 
     trainer = Trainer(feature_net,
                       bb_net,
