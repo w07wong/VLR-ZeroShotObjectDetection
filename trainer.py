@@ -141,7 +141,7 @@ class Trainer(object):
 
             ''' Compute bounding box loss using bounding box regression loss. '''
             # bb loss: https://towardsdatascience.com/bounding-box-prediction-from-scratch-using-pytorch-a8525da51ddc
-            bb_loss = self._bb_criterion(bb_output, bb).sum(1)
+            bb_loss = self._bb_criterion(bb_output, bb).sum(1).mean()
             bb_loss.backward()
 
             ''' Compute feature net loss '''
@@ -158,7 +158,7 @@ class Trainer(object):
                 y_max = int(np.ceil(min(scene_img.shape[3], pred_bb[3].item() + 1)))
                 scene_img[i] = F.interpolate(scene_img[i, :, y_min:y_max, x_min:x_max].unsqueeze(0), size=(scene_img.shape[2], scene_img.shape[3]), mode='bilinear')
             bb_feature_map = self._feature_net.forward_scene(scene_img)
-            feature_loss = self._feature_criterion(target_feature_map, bb_feature_map).sum(1)
+            feature_loss = self._feature_criterion(target_feature_map, bb_feature_map).sum(1).mean()
             feature_loss.backward()
 
             self._feature_optimizer.step()
@@ -201,7 +201,7 @@ class Trainer(object):
                 feature_output = self._feature_net((scene_img, target_img))
                 bb_output = self._bb_net(feature_output)
 
-                bb_loss = self._bb_criterion(bb_output, bb).sum(1)
+                bb_loss = self._bb_criterion(bb_output, bb).sum(1).mean()
 
                 target_feature_map = self._feature_net.forward_target(target_img)
                 for i in range(len(bb_output)):
@@ -212,7 +212,7 @@ class Trainer(object):
                     y_max = int(np.ceil(min(scene_img.shape[3], pred_bb[3].item() + 1)))
                     scene_img[i] = F.interpolate(scene_img[i, :, x_min:x_max, y_min:y_max].unsqueeze(0), size=(scene_img.shape[2], scene_img.shape[3]), mode='bilinear')
                 bb_feature_map = self._feature_net.forward_scene(scene_img)
-                feature_loss = self._feature_criterion(target_feature_map, bb_feature_map).sum(1)
+                feature_loss = self._feature_criterion(target_feature_map, bb_feature_map).sum(1).mean()
 
                 feature_eval_losses.append(feature_loss.item())
                 bb_eval_losses.append(bb_loss.item())
