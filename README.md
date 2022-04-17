@@ -1,5 +1,17 @@
 # VLR-ZeroShotObjectDetection
 
+## Process Dataset
+
+Run from the repo's root directory, `python process_data.py <path/to/scene/data> <full/path/to/target/images> <path/to/data>` where `<path/to/scene/data>` is the YCB data directory, `<full/path/to/target/images>` is the generated target image directory, and `<path/to/data>` is the processed dataset that stores the images and bounding boxes.
+
+Each scene image corresponds to 
+
+1. scene image (e.g. `000000_scene.png`)
+2. bounding box file (e.g. `000000.npy`)
+3. ten target images (e.g. `000000_target_0000.png` - `000000_target_0009.png`)
+
+`<path/to/data>/class.npy` contains the class label for each scene image. 
+
 ## To Train
 1. Run `moments.py --data-dir=<path/to/data>` where `path/to/data` is where the images and bounding boxes are store. This script generates a moments.npz file used during training to normalize the images.
 2. Run `train.py <path/to/data> ...` where `path/to/data` is where the images, bounding boxes and moments.npz file. Specify any other arguments, replacing `...` with them, which are defined in `train.py`. You can also specify other arguments in `constants.py` if you don't want to deal with command line arguments.
