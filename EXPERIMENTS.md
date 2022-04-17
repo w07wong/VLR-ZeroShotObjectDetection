@@ -4,7 +4,7 @@
 
 - Have a separate ID for a scene-target pair 
 - Each of the 10 target images for an object are paired separately with the same scene image
-
+- Currently keeping `0048` video as train and `0050` as test 
 
 Testing
 - Given a new object and a new scene
@@ -28,3 +28,5 @@ Testing
 2.	multi-pair
 	  - Train : 1 scene - 10 target images (averaged features)
 	  - Test  : 1 scene - 1 target image
+3. 	zero shot w/ common objects in scene
+	  - Test with `0049` video as it has common objects with `0048`
