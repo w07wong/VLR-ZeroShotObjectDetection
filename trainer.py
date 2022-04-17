@@ -153,10 +153,10 @@ class Trainer(object):
             for i in range(len(bb_output)):
                 pred_bb = bb_output[i]
                 x_min = int(np.floor(max(0, pred_bb[0].item())))
-                x_max = int(np.ceil(min(scene_img.shape[2], pred_bb[1].item() + 1)))
-                y_min = int(np.floor(max(0, pred_bb[2].item())))
+                x_max = int(np.ceil(min(scene_img.shape[2], pred_bb[2].item() + 1)))
+                y_min = int(np.floor(max(0, pred_bb[1].item())))
                 y_max = int(np.ceil(min(scene_img.shape[3], pred_bb[3].item() + 1)))
-                scene_img[i] = F.interpolate(scene_img[i, :, x_min:x_max, y_min:y_max].unsqueeze(0), size=(scene_img.shape[2], scene_img.shape[3]), mode='bilinear')
+                scene_img[i] = F.interpolate(scene_img[i, :, y_min:y_max, x_min:x_max].unsqueeze(0), size=(scene_img.shape[2], scene_img.shape[3]), mode='bilinear')
             bb_feature_map = self._feature_net.forward_scene(scene_img)
             feature_loss = self._feature_criterion(target_feature_map, bb_feature_map).sum(1)
             feature_loss.backward()
