@@ -9,7 +9,7 @@ class TrainingConstants(object):
     BSZ = 24 
 
     LOG_INTERVAL = 1  # Batches
-    DEVICE = DeviceConstants.CPU
+    DEVICE = DeviceConstants.CUDA
     OUTPUT_DIR = 'nets'
     FEATURE_NET_NAME = 'feature_net'
     BOUNDING_BOX_NET_NAME = 'bb_net'

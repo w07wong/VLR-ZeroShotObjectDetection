@@ -4,5 +4,4 @@ opencv-python
 colorlog
 torchvision
 tensorboard
-cv2
 gdown

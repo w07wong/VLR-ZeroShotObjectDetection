@@ -53,8 +53,8 @@ class FeatureNet(nn.Module):
         return self.target_features(target_normalized)
 
     def forward(self, x):
-        scene_img = x[0]
-        target_img = x[1]
+        scene_img = x[0].to(self._device)
+        target_img = x[1].to(self._device)
 
         scene = self.forward_scene(scene_img)
         target = self.forward_target(target_img)
