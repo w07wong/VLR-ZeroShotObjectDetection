@@ -1,0 +1,7 @@
+numpy
+torch
+opencv-python
+colorlog
+torchvision
+tensorboard
+cv2

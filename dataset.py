@@ -28,13 +28,15 @@ class Dataset(TorchDataset):
 
     def __getitem__(self, idx):
         scene_fname = self.scene_fnames[idx] # this is how we index the dataset
+        tag = scene_fname[:scene_fname.rfind('_')] # this should extract only the hash from the filename (i.e. 000 from 000_scene.png)
+
+        scene_fname = os.readlink(scene_fname)
         scene_img = cv2.imread(scene_fname)
         scene_img = self._resize_img(scene_img) # Can remove later
         scene_img = np.transpose(scene_img, (2, 0, 1)).astype(np.float32) # transposing to (Channel, Width, Height)
         
-        tag = scene_fname[:scene_fname.rfind('_')] # this should extract only the hash from the filename (i.e. 000 from 000_scene.png)
-        
         target_fname = '{}_target.png'.format(tag) # find the target image that corresponds with the scene by hash
+        target_fname = os.readlink(target_fname)
         target_img = cv2.imread(target_fname)
         target_img = self._resize_img(target_img) # Can remove later
         target_img = np.transpose(target_img, (2, 0, 1)).astype(np.float32) # transposing to (Channel, Width, Height)
