@@ -43,9 +43,14 @@ class Dataset(TorchDataset):
         
         bb_fname = '{}.npy'.format(tag) # find the bounding box that corresponds with the scene by hash
         bb = np.load(bb_fname)
-        bb = np.array([bb[0], bb[1] - bb[0], bb[2], bb[3] - bb[2]])
 
-        bb[2] -= bb[0]
-        bb[3] -= bb[1]
+        # bb - [x_min, y_min, x_max, y_max]
+        bb = np.array([bb[0], bb[1], bb[2], bb[3]])
+
+        bb[2] = (bb[2] - bb[0]) / scene_img.shape[1]
+        bb[3] = (bb[3] - bb[1]) / scene_img.shape[2]
+
+        bb[0] /= scene_img.shape[1]
+        bb[1] /= scene_img.shape[2]
 
         return (scene_img, target_img, bb)

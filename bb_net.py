@@ -22,24 +22,25 @@ class BoundingBoxNet(nn.Module):
         # Modify input channel dimension of encoder
         with torch.no_grad():
             w = self.encoder.conv1.weight
-            w = torch.cat([w, torch.full((64, 14, 7, 7), 0.01)], dim=1)
+            w = torch.cat([w, torch.full((64, 13, 7, 7), 0.01)], dim=1)
             self.encoder.conv1.weight = nn.Parameter(w)
 
-        self.bb1 = nn.Linear(128, 128)
-        self.bb2 = nn.Linear(128, 64)
-        self.bb3 = nn.Linear(64, 4)
+        self.bb1 = nn.Linear(1000, 512)
+        self.bb2 = nn.Linear(512, 128)
+        self.bb3 = nn.Linear(128, 64)
+        self.bb4 = nn.Linear(64, 4)
 
     def forward(self, x):
 
-        print("before", x.shape)
         x = self.encoder(x)
-        print(x.shape)
         x = x.view(x.shape[0], -1)
         x = self.bb1(x)
         x = F.relu(x)
         x = self.bb2(x)
         x = F.relu(x)
-        return self.bb3(x)
+        x = self.bb3(x)
+        x = F.relu(x)
+        return torch.sigmoid(self.bb4(x))
 
     def save(self, dir_path, net_fname, net_label):
         net_path = os.path.join(dir_path, net_label + net_fname)

@@ -150,20 +150,20 @@ class Trainer(object):
             target_feature_map = self._feature_net.module.forward_target(target_img)
             # # Get predicted bounding box feature map from scene feature extractor head. Modify scene_img inplace to save memory?
             # # TODO: can we vectorize this?
-<<<<<<< HEAD
             feature_loss = torch.tensor([-1])
 
             if epoch > 1:
               for i in range(len(bb_output)):
                   pred_bb = bb_output[i]
-                  x_min = int(np.floor(max(0, pred_bb[0].item())))
-                  width = int(np.ceil(max(0, pred_bb[1].item())))
+                  x_min = int(np.floor(max(0, pred_bb[0].item()*scene_img.shape[2])))  # scene_img : [B, C, W, H]
+                  width = int(np.ceil(max(0, pred_bb[2].item()*scene_img.shape[2])))
                   x_max = int(np.ceil(min(scene_img.shape[2], x_min + width + 1)))
                   # x_max = int(np.ceil(min(scene_img.shape[2], pred_bb[1].item() + 1)))
-                  y_min = int(np.floor(max(0, pred_bb[2].item())))
-                  height = int(np.ceil(max(0, pred_bb[3].item())))
+                  y_min = int(np.floor(max(0, pred_bb[1].item()*scene_img.shape[3])))
+                  height = int(np.ceil(max(0, pred_bb[3].item()*scene_img.shape[3])))
                   y_max = int(np.ceil(min(scene_img.shape[3], y_min + height + 1)))
                   # y_max = int(np.ceil(min(scene_img.shape[3], pred_bb[3].item() + 1)))
+                  print(x_min, x_max, y_min, y_max, pred_bb, scene_img.shape)
                   scene_img[i] = F.interpolate(scene_img[i, :, y_min:y_max, x_min:x_max].unsqueeze(0), size=(scene_img.shape[2], scene_img.shape[3]), mode='bilinear')
               bb_feature_map = self._feature_net.module.forward_scene(scene_img)
               feature_loss = self._feature_criterion(target_feature_map, bb_feature_map).sum(1).mean()
@@ -211,7 +211,6 @@ class Trainer(object):
 
                 bb_loss = self._bb_criterion(bb_output, bb).sum(1).mean()
 
-<<<<<<< HEAD
                 target_feature_map = self._feature_net.module.forward_target(target_img)
 
                 feature_loss = torch.tensor([-1])
