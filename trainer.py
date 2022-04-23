@@ -129,7 +129,7 @@ class Trainer(object):
         feature_train_losses = []
         bb_train_losses = []
 
-        for batch_idx, (scene_img, target_img, bb) in enumerate(self._train_data_loader):
+        for batch_idx, (scene_img, target_img, bb, crop_coords) in enumerate(self._train_data_loader):
             scene_img = scene_img.to(self._device)
             target_img = target_img.to(self._device)
             bb = bb.to(self._device)
@@ -137,7 +137,15 @@ class Trainer(object):
             self._feature_optimizer.zero_grad()
             self._bb_optimizer.zero_grad()
             
-            feature_output = self._feature_net((scene_img, target_img))
+            ''' DOT PRODUCT FOR FEATURE NET'''
+            # feature_output = self._feature_net((scene_img, target_img))
+            ''' CONVOLUTION FOR FEATURE NET '''
+            scene_features = self._feature_net.forward_scene(scene_img)
+            target_features = self._feautre_net.forward_target(target_img)
+            # Crop target features using crop coordinates
+            target_features = target_features[:, :, crop_coords[0]:crop_coords[1], crop_coords[2]:crop_coords[3]]
+            feature_output = F.conv2d(scene_features, target_features)
+
             bb_output = self._bb_net(feature_output)
 
             ''' Compute bounding box loss using bounding box regression loss. '''
@@ -213,13 +221,21 @@ class Trainer(object):
         bb_eval_losses = []
         with torch.no_grad():
             i = 0
-            for batch_idx, (scene_img, target_img, bb) in enumerate(self._val_data_loader):
+            for batch_idx, (scene_img, target_img, bb, crop_coords) in enumerate(self._val_data_loader):
                 i += 1
                 scene_img = scene_img.to(self._device)
                 target_img = target_img.to(self._device)
                 bb = bb.to(self._device)
                 
-                feature_output = self._feature_net((scene_img, target_img))
+                ''' DOT PRODUCT FOR FEATURE NET'''
+                # feature_output = self._feature_net((scene_img, target_img))
+                ''' CONVOLUTION FOR FEATURE NET '''
+                scene_features = self._feature_net.forward_scene(scene_img)
+                target_features = self._feautre_net.forward_target(target_img)
+                # Crop target features using crop coordinates
+                target_features = target_features[:, :, crop_coords[0]:crop_coords[1], crop_coords[2]:crop_coords[3]]
+                feature_output = F.conv2d(scene_features, target_features)
+                
                 bb_output = self._bb_net(feature_output)
 
                 bb_loss = self._bb_criterion(bb_output, bb).sum(1).mean()
