@@ -12,7 +12,7 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import SubsetRandomSampler
 from logger import Logger
 from constants import TrainingConstants
-
+from losses import compute_diou
 
 class Trainer(object):
     def __init__(self,
@@ -141,7 +141,9 @@ class Trainer(object):
 
             ''' Compute bounding box loss using bounding box regression loss. '''
             # bb loss: https://towardsdatascience.com/bounding-box-prediction-from-scratch-using-pytorch-a8525da51ddc
-            bb_loss = self._bb_criterion(bb_output, bb).sum(1).mean()
+            #bb_loss = self._bb_criterion(bb_output, bb).sum(1).mean()
+            _, diou = compute_diou(bb_output, bb)
+            bb_loss = diou
             bb_loss.backward()
 
             ''' Compute feature net loss '''
