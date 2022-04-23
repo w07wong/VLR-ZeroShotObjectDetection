@@ -30,7 +30,15 @@ class FeatureNet(nn.Module):
             resnet18_scene.maxpool,
             resnet18_scene.layer1,
             resnet18_scene.layer2,
-            resnet18_scene.avgpool
+            resnet18_scene.layer3,
+            nn.ConvTranspose2d(256, 128, 2, stride=2),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(128, 64, 2, stride=2),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(64, 32, 2, stride=2),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(32, 16, 2, stride=2)
+            #resnet18_scene.avgpool
         )
 
         resnet18_target = torchvision.models.resnet18(pretrained=True)
@@ -41,8 +49,18 @@ class FeatureNet(nn.Module):
             resnet18_target.maxpool,
             resnet18_target.layer1,
             resnet18_target.layer2,
-            resnet18_target.avgpool
+            resnet18_target.layer3,
+            nn.ConvTranspose2d(256, 128, 2, stride=2),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(128, 64, 2, stride=2),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(64, 32, 2, stride=2),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(32, 16, 2, stride=2)
+            #resnet18_target.avgpool
         )
+
+        
 
     def forward_scene(self, scene):
         scene_normalized = (scene - torch.tensor(self.scene_mean, dtype=torch.float32, device=self._device)) / torch.tensor(self.scene_std + 1e-10, dtype=torch.float32, device=self._device)

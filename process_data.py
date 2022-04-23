@@ -34,31 +34,30 @@ def process(scene_data_dir, target_images_dir, dataset_dir, video_folders):
                         class_label = tmp[0]
                         x1,y1,x2,y2 = ( float(n) for n in tmp[1:])
                         bbox = np.array([x1,y1,x2,y2])
-                        break
 
-                # get target images 
-                indices = np.arange(target_pose_total)
-                np.random.shuffle(indices)
+                        # get target images 
+                        indices = np.arange(target_pose_total)
+                        np.random.shuffle(indices)
 
-                target_src_dir = path.join(target_images_dir, class_label)
-                for e,ind in enumerate(indices[:target_pose_samples]):
-                    fname = "%04d.png"%ind
-                    target_src_path = path.join(target_src_dir, fname)
-                    target_image_name = "%06d_target.png"%(cnt)
-                    target_dst_path = path.join(dataset_dir, target_image_name)
-                    os.symlink(target_src_path, target_dst_path)
+                        target_src_dir = path.join(target_images_dir, class_label)
+                        for e,ind in enumerate(indices[:target_pose_samples]):
+                            fname = "%04d.png"%ind
+                            target_src_path = path.join(target_src_dir, fname)
+                            target_image_name = "%06d_target.png"%(cnt)
+                            target_dst_path = path.join(dataset_dir, target_image_name)
+                            os.symlink(target_src_path, target_dst_path)
 
-                    # move scene image
-                    image_name = "%06d_scene.png"%cnt
-                    dst_path = path.join(dataset_dir, image_name)
-                    os.symlink(src_path, dst_path)
-                    # get bounding box (first item only)
-                    bbox_path = path.join(dataset_dir, "%06d.npy"%cnt)
-                    np.save(bbox_path, bbox)
-                    class_list.append((tmp[0]))
+                            # move scene image
+                            image_name = "%06d_scene.png"%cnt
+                            dst_path = path.join(dataset_dir, image_name)
+                            os.symlink(src_path, dst_path)
+                            # get bounding box (first item only)
+                            bbox_path = path.join(dataset_dir, "%06d.npy"%cnt)
+                            np.save(bbox_path, bbox)
+                            class_list.append((tmp[0]))
 
-                    cnt += 1
-                #from IPython import embed;embed()
+                            cnt += 1
+                            #from IPython import embed;embed()
 
     np.save(path.join(dataset_dir, "class.npy"), class_list)
 

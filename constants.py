@@ -16,15 +16,15 @@ class TrainingConstants(object):
     LOG_DIR = 'logs'
     FEATURE_NET_SAVE_FNAME = 'feature_net.pth'
     BOUNDING_BOX_NET_SAVE_FNAME = 'bb_net.pth'
-    NET_SAVE_FREQUENCY = 5 # Epochs
+    NET_SAVE_FREQUENCY =1  # Epochs
     
     FEATURE_BASE_LR = 1e-4
     FEATURE_LR_STEP_SIZE = 1  # Epochs
     FEATURE_LR_DECAY_RATE = 0.9
 
-    BB_BASE_LR = 1e-3
+    BB_BASE_LR = 1e-2
     BB_LR_STEP_SIZE = 1
-    BB_LR_DECAY_RATE = 0.9
+    BB_LR_DECAY_RATE = 0.3
 
     ADAM_BETA1 = 0.9
     ADAM_BETA2 = 0.999

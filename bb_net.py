@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision 
+
 import os
 from constants import TrainingConstants
 import numpy as np
@@ -14,11 +16,17 @@ class BoundingBoxNet(nn.Module):
         self._device = TrainingConstants.DEVICE
 
         # TODO: idk the input size right now so putting 1000.
+
+        self.conv = torchvision.models.resnet18(pretrained=False)
+
         self.bb1 = nn.Linear(128, 128)
         self.bb2 = nn.Linear(128, 64)
         self.bb3 = nn.Linear(64, 4)
 
     def forward(self, x):
+        print(x.shape)
+
+        x = self.conv(x)
         x = x.view(x.shape[0], -1)
         x = self.bb1(x)
         x = F.relu(x)

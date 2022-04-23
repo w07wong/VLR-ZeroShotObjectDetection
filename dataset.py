@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from cv2 import cv2
+import cv2
 from torch.utils.data.dataset import Dataset as TorchDataset
 
 class Dataset(TorchDataset):
@@ -43,5 +43,8 @@ class Dataset(TorchDataset):
         
         bb_fname = '{}.npy'.format(tag) # find the bounding box that corresponds with the scene by hash
         bb = np.load(bb_fname)
+
+        bb[2] -= bb[0]
+        bb[3] -= bb[1]
 
         return (scene_img, target_img, bb)

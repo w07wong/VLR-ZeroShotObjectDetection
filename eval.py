@@ -29,13 +29,14 @@ def eval(feature_net, bb_net, dataset, data_loader, device):
             bb_loss = bb_criterion(bb_output, bb).sum(1)
 
             target_feature_map = feature_net.forward_target(target_img)
-            for i in range(len(bb_output)):
-                pred_bb = bb_output[i]
+            for j in range(len(bb_output)):
+                pred_bb = bb_output[j]
                 x_min = int(np.floor(max(0, pred_bb[0].item())))
-                x_max = int(np.ceil(min(scene_img.shape[2], pred_bb[1].item() + 1)))
+                x_max = int(np.ceil(min(scene_img.shape[2], pred_bb[0].item()+pred_bb[1].item() + 1)))
                 y_min = int(np.floor(max(0, pred_bb[2].item())))
-                y_max = int(np.ceil(min(scene_img.shape[3], pred_bb[3].item() + 1)))
-                scene_img[i] = F.interpolate(scene_img[i, :, x_min:x_max, y_min:y_max].unsqueeze(0), size=(scene_img.shape[2], scene_img.shape[3]), mode='bilinear')
+                y_max = int(np.ceil(min(scene_img.shape[3], pred_bb[2].item()+pred_bb[3].item() + 1)))
+                print(x_min, x_max, y_min, y_max, pred_bb)
+                scene_img[j] = F.interpolate(scene_img[j, :, x_min:x_max, y_min:y_max].unsqueeze(0), size=(scene_img.shape[2], scene_img.shape[3]), mode='bilinear')
             bb_feature_map = feature_net.forward_scene(scene_img)
             feature_loss = feature_criterion(target_feature_map, bb_feature_map).sum(1)
 
@@ -55,10 +56,14 @@ def eval(feature_net, bb_net, dataset, data_loader, device):
                 }
             })})
             gt_x_min, gt_y_min, gt_x_max, gt_y_max = dataset[i][2]
+            gt_x_max += gt_x_min
+            gt_y_max += gt_y_min 
+
             gt_x_min /= scene_img.shape[1]
             gt_x_max /= scene_img.shape[1]
-            gt_y_min /= scene_img.shape[0]
             gt_y_max /= scene_img.shape[0]
+            gt_y_min /= scene_img.shape[0]
+
             wandb.log({"image_gt": wandb.Image(scene_img, boxes={
                 "ground_truth": {
                     "box_data": [{"position": {"minX": gt_x_min, "minY": gt_y_min, "maxX": gt_x_max, "maxY": gt_y_max}, "class_id": 0}],
@@ -102,10 +107,12 @@ if __name__ == '__main__':
         device = DeviceConstants.CPU
 
     feature_net = FeatureNet(dataset.scene_mean, dataset.scene_std, dataset.target_mean, dataset.target_std, name=TrainingConstants.FEATURE_NET_NAME)
+    feature_net.cuda()
     feature_net.load_state_dict(torch.load(args.feature_net, map_location=torch.device(device)))
     feature_net.eval()
 
     bb_net = BoundingBoxNet(name=TrainingConstants.BOUNDING_BOX_NET_NAME)
+    bb_net.cuda()
     bb_net.load_state_dict(torch.load(args.bb_net, map_location=torch.device(device)))
     bb_net.eval()
 
