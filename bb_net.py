@@ -17,16 +17,23 @@ class BoundingBoxNet(nn.Module):
 
         # TODO: idk the input size right now so putting 1000.
 
-        self.conv = torchvision.models.resnet18(pretrained=False)
+        self.encoder = torchvision.models.resnet18(pretrained=False)
+
+        # Modify input channel dimension of encoder
+        with torch.no_grad():
+            w = self.encoder.conv1.weight
+            w = torch.cat([w, torch.full((64, 14, 7, 7), 0.01)], dim=1)
+            self.encoder.conv1.weight = nn.Parameter(w)
 
         self.bb1 = nn.Linear(128, 128)
         self.bb2 = nn.Linear(128, 64)
         self.bb3 = nn.Linear(64, 4)
 
     def forward(self, x):
-        print(x.shape)
 
-        x = self.conv(x)
+        print("before", x.shape)
+        x = self.encoder(x)
+        print(x.shape)
         x = x.view(x.shape[0], -1)
         x = self.bb1(x)
         x = F.relu(x)
