@@ -150,6 +150,7 @@ class Trainer(object):
             target_feature_map = self._feature_net.module.forward_target(target_img)
             # # Get predicted bounding box feature map from scene feature extractor head. Modify scene_img inplace to save memory?
             # # TODO: can we vectorize this?
+<<<<<<< HEAD
             feature_loss = torch.tensor([-1])
 
             if epoch > 1:
@@ -188,7 +189,7 @@ class Trainer(object):
                 feature_train_losses.append(feature_loss.item())
                 bb_train_losses.append(bb_loss.item())
 
-        self._log_metric(epoch, 'train/epoch_feature_loss', feature_train_losses)
+        # self._log_metric(epoch, 'train/epoch_feature_loss', feature_train_losses)
         self._log_metric(epoch, 'train/epoch_bb_loss', bb_train_losses)
 
     def _eval(self, epoch):
@@ -210,6 +211,7 @@ class Trainer(object):
 
                 bb_loss = self._bb_criterion(bb_output, bb).sum(1).mean()
 
+<<<<<<< HEAD
                 target_feature_map = self._feature_net.module.forward_target(target_img)
 
                 feature_loss = torch.tensor([-1])
@@ -233,7 +235,7 @@ class Trainer(object):
                 feature_eval_losses.append(feature_loss.item())
                 bb_eval_losses.append(bb_loss.item())
 
-        self._log_metric(epoch, 'eval/epoch_feature_loss', feature_eval_losses)
+        # self._log_metric(epoch, 'eval/epoch_feature_loss', feature_eval_losses)
         self._log_metric(epoch, 'eval/epoch_bb_loss', bb_eval_losses)
 
     def train(self):
