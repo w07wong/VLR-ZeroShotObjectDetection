@@ -94,7 +94,8 @@ class Trainer(object):
 
         self._feature_optimizer = torch.optim.Adam(self._feature_net.parameters(), lr=self._feature_base_lr, betas=(TrainingConstants.ADAM_BETA1, TrainingConstants.ADAM_BETA2))
         self._feature_scheduler = StepLR(self._feature_optimizer, step_size=self._feature_lr_step_size, gamma=self._feature_lr_decay_rate)
-        self._bb_optimizer = torch.optim.Adam(self._bb_net.parameters(), lr=self._bb_base_lr, betas=(TrainingConstants.ADAM_BETA1, TrainingConstants.ADAM_BETA2))
+        #self._bb_optimizer = torch.optim.Adam(self._bb_net.parameters(), lr=self._bb_base_lr, betas=(TrainingConstants.ADAM_BETA1, TrainingConstants.ADAM_BETA2))
+        self._bb_optimizer = torch.optim.Adagrad(self._bb_net.parameters(), lr=self._bb_base_lr)
         self._bb_scheduler = StepLR(self._bb_optimizer, step_size=self._bb_lr_step_size, gamma=self._bb_lr_decay_rate)
         
         self._feature_criterion = nn.L1Loss(reduction="none")
@@ -141,9 +142,16 @@ class Trainer(object):
 
             ''' Compute bounding box loss using bounding box regression loss. '''
             # bb loss: https://towardsdatascience.com/bounding-box-prediction-from-scratch-using-pytorch-a8525da51ddc
-            #bb_loss = self._bb_criterion(bb_output, bb).sum(1).mean()
-            _, diou = compute_diou(bb_output, bb)
-            bb_loss = diou
+            bb_output_ = bb_output.clone()
+            bb_ = bb.clone()
+            bb_output_[:,2] += bb_output_[:,0]
+            bb_output_[:,3] += bb_output_[:,1]
+            bb_[:,2] += bb_[:,0]
+            bb_[:,3] += bb_[:,1]
+
+            bb_loss = self._bb_criterion(bb_output, bb).sum(1).mean()
+            #_, diou = compute_diou(bb_output, bb)
+            #bb_loss += 10*diou
             bb_loss.backward()
 
             ''' Compute feature net loss '''
@@ -157,16 +165,19 @@ class Trainer(object):
             if epoch > 1:
               for i in range(len(bb_output)):
                   pred_bb = bb_output[i]
-                  x_min = int(np.floor(max(0, pred_bb[0].item()*scene_img.shape[2])))  # scene_img : [B, C, W, H]
-                  width = int(np.ceil(max(0, pred_bb[2].item()*scene_img.shape[2])))
-                  x_max = int(np.ceil(min(scene_img.shape[2], x_min + width + 1)))
+                  x_min = int(np.floor(max(0, pred_bb[0].item()*scene_img.shape[3])))  # scene_img : [B, C, H, W]
+                  width = int(np.ceil(max(0, pred_bb[2].item()*scene_img.shape[3])))
+                  x_max = int(np.ceil(min(scene_img.shape[3], x_min + width + 1)))
                   # x_max = int(np.ceil(min(scene_img.shape[2], pred_bb[1].item() + 1)))
-                  y_min = int(np.floor(max(0, pred_bb[1].item()*scene_img.shape[3])))
-                  height = int(np.ceil(max(0, pred_bb[3].item()*scene_img.shape[3])))
-                  y_max = int(np.ceil(min(scene_img.shape[3], y_min + height + 1)))
+                  y_min = int(np.floor(max(0, pred_bb[1].item()*scene_img.shape[2])))
+                  height = int(np.ceil(max(0, pred_bb[3].item()*scene_img.shape[2])))
+                  y_max = int(np.ceil(min(scene_img.shape[2], y_min + height + 1)))
                   # y_max = int(np.ceil(min(scene_img.shape[3], pred_bb[3].item() + 1)))
-                  print(x_min, x_max, y_min, y_max, pred_bb, scene_img.shape)
-                  scene_img[i] = F.interpolate(scene_img[i, :, y_min:y_max, x_min:x_max].unsqueeze(0), size=(scene_img.shape[2], scene_img.shape[3]), mode='bilinear')
+                  try:
+                      scene_img[i] = F.interpolate(scene_img[i, :, y_min:y_max, x_min:x_max].unsqueeze(0), size=(scene_img.shape[2], scene_img.shape[3]), mode='bilinear')
+                  except:
+                      print(x_min, x_max, y_min, y_max, pred_bb, scene_img.shape)
+
               bb_feature_map = self._feature_net.module.forward_scene(scene_img)
               feature_loss = self._feature_criterion(target_feature_map, bb_feature_map).sum(1).mean()
               feature_loss.backward()
@@ -222,14 +233,14 @@ class Trainer(object):
                   for i in range(len(bb_output)):
                       pred_bb = bb_output[i]
                       x_min = int(np.floor(max(0, pred_bb[0].item())))
-                      width = int(np.ceil(max(0, pred_bb[1].item())))
-                      x_max = int(np.ceil(min(scene_img.shape[2], x_min + width + 1)))
+                      width = int(np.ceil(max(0, pred_bb[2].item())))
+                      x_max = int(np.ceil(min(scene_img.shape[3], x_min + width + 1)))
                       # x_max = int(np.ceil(min(scene_img.shape[2], pred_bb[1].item() + 1)))
-                      y_min = int(np.floor(max(0, pred_bb[2].item())))
+                      y_min = int(np.floor(max(0, pred_bb[1].item())))
                       height = int(np.ceil(max(0, pred_bb[3].item())))
-                      y_max = int(np.ceil(min(scene_img.shape[3], y_min + height + 1)))
+                      y_max = int(np.ceil(min(scene_img.shape[2], y_min + height + 1)))
                       # y_max = int(np.ceil(min(scene_img.shape[3], pred_bb[3].item() + 1)))
-                      scene_img[i] = F.interpolate(scene_img[i, :, x_min:x_max, y_min:y_max].unsqueeze(0), size=(scene_img.shape[2], scene_img.shape[3]), mode='bilinear')
+                      scene_img[i] = F.interpolate(scene_img[i, :, y_min:y_max, x_min:x_max].unsqueeze(0), size=(scene_img.shape[2], scene_img.shape[3]), mode='bilinear')
                   bb_feature_map = self._feature_net.module.forward_scene(scene_img)
                   feature_loss = self._feature_criterion(target_feature_map, bb_feature_map).sum(1).mean()
 

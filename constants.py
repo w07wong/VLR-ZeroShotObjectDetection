@@ -24,7 +24,7 @@ class TrainingConstants(object):
 
     BB_BASE_LR = 1e-2
     BB_LR_STEP_SIZE = 1
-    BB_LR_DECAY_RATE = 0.3
+    BB_LR_DECAY_RATE = 0.8
 
     ADAM_BETA1 = 0.9
     ADAM_BETA2 = 0.999
