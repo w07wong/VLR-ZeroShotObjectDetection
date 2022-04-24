@@ -26,6 +26,10 @@ class Dataset(TorchDataset):
             img = cv2.resize(img, (self.img_width, self.img_height))
         return img
 
+    def _crop_coords(self, img):
+        y_nonzero, x_nonzero, _ = np.nonzero(img)
+        return [np.min(y_nonzero), np.max(y_nonzero), np.min(x_nonzero), np.max(x_nonzero)]
+
     def __getitem__(self, idx):
         scene_fname = self.scene_fnames[idx] # this is how we index the dataset
         tag = scene_fname[:scene_fname.rfind('_')] # this should extract only the hash from the filename (i.e. 000 from 000_scene.png)
@@ -53,4 +57,6 @@ class Dataset(TorchDataset):
         bb[0] /= self.img_width
         bb[1] /= self.img_height
 
-        return (scene_img, target_img, bb)
+        crop_coordinates = np.array(self._crop_coords(target_img))
+
+        return (scene_img, target_img, bb, crop_coordinates)
