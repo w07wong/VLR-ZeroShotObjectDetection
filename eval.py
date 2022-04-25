@@ -39,10 +39,10 @@ def eval(feature_net, dataset, data_loader, device):
             bb_eval_losses.append(bb_loss.item())
 
             pred_bb = bb_output[0]
-            x_min = int(np.floor(max(0, pred_bb[0].item())))
-            x_max = int(np.ceil(min(1.0, pred_bb[0].item()+pred_bb[2].item())))
-            y_min = int(np.floor(max(0, pred_bb[1].item())))
-            y_max = int(np.ceil(min(1.0, pred_bb[1].item()+pred_bb[3].item())))
+            x_min = max(0, pred_bb[0].item())
+            x_max = min(1.0, pred_bb[0].item()+pred_bb[2].item())
+            y_min = max(0, pred_bb[1].item())
+            y_max = min(1.0, pred_bb[1].item()+pred_bb[3].item())
 
             # Plot image to wandb
             scene_img = dataset[i][0].transpose(1, 2, 0)
@@ -110,6 +110,7 @@ if __name__ == '__main__':
 
     dataset = Dataset(args.data_dir)
 
+    '''
     total_size=1.0
     val_size=0.2
     ind = np.arange(len(dataset))
@@ -125,7 +126,8 @@ if __name__ == '__main__':
                                 num_workers=1,
                                 pin_memory=True,
                                 sampler=train_sampler)
-    # data_loader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=1)
+    '''
+    data_loader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=1)
 
     if args.cuda:
         device = DeviceConstants.CUDA

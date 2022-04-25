@@ -167,10 +167,10 @@ class Trainer(object):
             # for i in range(scene_img.shape[0]):
             for i in range(5):
                 pred_bb = bb_output[i]
-                x_min = int(np.floor(max(0, pred_bb[0].item())))
-                x_max = int(np.ceil(min(1.0, pred_bb[0].item()+pred_bb[2].item())))
-                y_min = int(np.floor(max(0, pred_bb[1].item())))
-                y_max = int(np.ceil(min(1.0, pred_bb[1].item()+pred_bb[3].item())))
+                x_min = max(0, pred_bb[0].item())
+                x_max = min(1.0, pred_bb[0].item()+pred_bb[2].item())
+                y_min = max(0, pred_bb[1].item())
+                y_max = min(1.0, pred_bb[1].item()+pred_bb[3].item())
 
                 # Plot image to wandb
                 scene_wandb = scene_img[i].cpu().detach().numpy()
