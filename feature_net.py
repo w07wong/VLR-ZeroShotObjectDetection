@@ -4,9 +4,19 @@ import torch.nn.functional as F
 import torchvision
 import os
 from constants import TrainingConstants
+import cv2
 import numpy as np
 
 torch.set_default_dtype(torch.float32)
+
+class ImageList:
+    def __init__(self, tensors, image_sizes):
+        self.tensors = tensors
+        self.image_sizes = image_sizes
+
+    def to(self, device):
+        cast_tensor = self.tensors.to(device)
+        return ImageList(cast_tensor, self.image_sizes)
 
 class FeatureNet(nn.Module):
     def __init__(self, scene_mean, scene_std, target_mean, target_std, name='feature_net'):
@@ -14,70 +24,124 @@ class FeatureNet(nn.Module):
         self.name = name
         self._device = TrainingConstants.DEVICE
 
-        # TODO: may need to downsample input images.
+        ''' Resize mean and std to correct sizes '''
+        self.scene_downsample_rate = 640 / 640
+        scene_mean = np.transpose(scene_mean, (1, 2, 0))
+        h, w, c = scene_mean.shape
+        img = cv2.resize(scene_mean, (int(w * self.scene_downsample_rate), int(h * self.scene_downsample_rate)))
+        scene_mean = np.transpose(img, (2, 0, 1))
 
-        self.scene_mean = scene_mean
-        self.scene_std = scene_std
-        self.target_mean = target_mean
-        self.target_std = target_std
+        scene_std = np.transpose(scene_std, (1, 2, 0))
+        h, w, c = scene_std.shape
+        img = cv2.resize(scene_std, (int(w * self.scene_downsample_rate), int(h * self.scene_downsample_rate)))
+        scene_std = np.transpose(img, (2, 0, 1))
 
-        # TODO: FPN?
-        resnet18_scene = torchvision.models.resnet18(pretrained=True)
-        self.scene_features = nn.Sequential(
-            resnet18_scene.conv1,
-            resnet18_scene.bn1,
-            resnet18_scene.relu,
-            resnet18_scene.maxpool,
-            resnet18_scene.layer1,
-            resnet18_scene.layer2,
-            resnet18_scene.layer3,
-            nn.ConvTranspose2d(256, 128, 2, stride=2),
-            nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(128, 64, 2, stride=2),
-            nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(64, 32, 2, stride=2),
-            nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(32, 16, 2, stride=2)
-            #resnet18_scene.avgpool
-        )
+        target_mean = np.transpose(target_mean, (1, 2, 0))
+        h, w, c = target_mean.shape
+        img = cv2.resize(target_mean, (int(w * 224 / 640), int(h * 224 / 480)))
+        target_mean = np.transpose(img, (2, 0, 1))
 
-        resnet18_target = torchvision.models.resnet18(pretrained=True)
+        target_std = np.transpose(target_std, (1, 2, 0))
+        h, w, c = target_std.shape
+        img = cv2.resize(target_std, (int(w * 224 / 640), int(h * 224 / 480)))
+        target_std = np.transpose(img, (2, 0, 1))
+
+        ''' Convert mean and std deviations to tensors '''
+        self.scene_mean = torch.tensor(scene_mean, dtype=torch.float32, device=self._device)
+        self.scene_std = torch.tensor(scene_std + 1e-10, dtype=torch.float32, device=self._device)
+        self.target_mean = torch.tensor(target_mean, dtype=torch.float32, device=self._device)
+        self.target_std = torch.tensor(target_std + 1e-10, dtype=torch.float32, device=self._device)
+
+        ''' Define scene feature extractor '''
+        faster_rcnn = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+        #for param in faster_rcnn.parameters():
+        #    param.requires_grad = False
+        self.faster_rcnn_backbone = faster_rcnn.backbone
+        self.faster_rcnn_rpn = faster_rcnn.rpn
+        self.faster_rcnn_roi_pool = faster_rcnn.roi_heads.box_roi_pool
+
+        ''' Define target feature extractor '''
+        resnet50_target = torchvision.models.resnet50(pretrained=True)
         self.target_features = nn.Sequential(
-            resnet18_target.conv1,
-            resnet18_target.bn1,
-            resnet18_target.relu,
-            resnet18_target.maxpool,
-            resnet18_target.layer1,
-            resnet18_target.layer2,
-            resnet18_target.layer3,
-            nn.ConvTranspose2d(256, 128, 2, stride=2),
-            nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(128, 64, 2, stride=2),
-            nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(64, 32, 2, stride=2),
-            nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(32, 16, 2, stride=2)
-            #resnet18_target.avgpool
+            resnet50_target.conv1,
+            resnet50_target.bn1,
+            resnet50_target.relu,
+            resnet50_target.maxpool,
+            resnet50_target.layer1,
+            resnet50_target.layer2,
+            resnet50_target.layer3,
+            resnet50_target.layer4,
+            resnet50_target.avgpool
         )
 
-        
+        self.fc1 = nn.Linear(2048, 256)
+        self.bb1 = nn.Linear(10000, 4096)
+        self.bb2 = nn.Linear(4096, 4096)
+        self.bb3 = nn.Linear(4096, 2048)
+        self.bb4 = nn.Linear(2048, 4)
 
-    def forward_scene(self, scene):
-        scene_normalized = (scene - torch.tensor(self.scene_mean, dtype=torch.float32, device=self._device)) / torch.tensor(self.scene_std + 1e-10, dtype=torch.float32, device=self._device)
-        return self.scene_features(scene_normalized)
+    def forward_scene(self, scene, bb):
+        scene_normalized = (scene - self.scene_mean) / self.scene_std
+
+        image_shapes = [(img.shape[1], img.shape[2]) for img in scene_normalized]
+        scene_features = self.faster_rcnn_backbone(scene_normalized)
+
+        if bb is not None:
+            bb = [{'boxes': torch.unsqueeze(box, dim=0)} for box in bb]
+        scene_rpn_boxes, scene_rpn_losses = self.faster_rcnn_rpn(ImageList(scene_normalized, image_shapes), scene_features, bb)
+
+        roi_pool = self.faster_rcnn_roi_pool(scene_features, scene_rpn_boxes, image_shapes)
+        return roi_pool, scene_rpn_boxes
 
     def forward_target(self, target):
-        target_normalized = (target - torch.tensor(self.target_mean, dtype=torch.float32, device=self._device)) / torch.tensor(self.target_std + 1e-10, dtype=torch.float32, device=self._device)
+        target_normalized = (target - self.target_mean) / self.target_std
         return self.target_features(target_normalized)
 
     def forward(self, x):
         scene_img = x[0].to(self._device)
         target_img = x[1].to(self._device)
+        if len(x) > 2:
+            bb = x[2].to(self._device)
+        else:
+            bb = None
 
-        scene = self.forward_scene(scene_img)
-        target = self.forward_target(target_img)
-        
-        return torch.mul(scene, target)
+        scene, scene_rpn_boxes = self.forward_scene(scene_img, bb)
+        scene = F.avg_pool2d(scene, scene.shape[2])
+        scene = scene.view(scene_img.shape[0], -1, scene.shape[1], scene.shape[2], scene.shape[3]).squeeze()
+        # if not self.training:
+        #     scene = scene.unsqueeze(0)
+        scene = F.normalize(scene, p=2.0, dim=2)
+
+        target = self.forward_target(target_img).squeeze()
+        target = self.fc1(target)
+        # if not self.training:
+        #     target = target.unsqueeze(0)
+        target = F.normalize(target, p=2.0, dim=1)
+
+        output = torch.einsum('bcd,bd->bc', scene, target)
+        output = F.softmax(output, dim=1).unsqueeze(2)
+        scene_rpn_boxes = torch.stack(scene_rpn_boxes)
+        scene_rpn_boxes[:, 0] /= 640
+        scene_rpn_boxes[:, 2] /= 640
+        scene_rpn_boxes[:, 1] /= 480
+        scene_rpn_boxes[:, 3] /= 480
+        output = torch.cat((output, scene_rpn_boxes), dim=2)
+        if output.shape[1] < 2000:
+            output = torch.cat((output, torch.full((output.shape[0], 2000 - output.shape[1], output.shape[2]), 0).to(self._device)), dim=1)
+
+        x = output.view(output.shape[0], -1)
+        x = self.bb1(x)
+        x = F.relu(x)
+        x = self.bb2(x)
+        x = F.relu(x)
+        x = self.bb3(x)
+        x = F.relu(x)
+        x = self.bb4(x)
+        # return torch.clamp(x, min=0, max=1)
+        return x
+
+
+        return output
 
     def save(self, dir_path, net_fname, net_label):
         net_path = os.path.join(dir_path, net_label + net_fname)
