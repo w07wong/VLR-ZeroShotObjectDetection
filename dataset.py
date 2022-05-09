@@ -36,12 +36,14 @@ class Dataset(TorchDataset):
 
         scene_fname = os.readlink(scene_fname)
         scene_img = cv2.imread(scene_fname)
+        scene_img = cv2.cvtColor(scene_img, cv2.COLOR_RGB2BGR)
         scene_img = self._resize_img(scene_img, 640, 480) # Can remove later
         scene_img = np.transpose(scene_img, (2, 0, 1)).astype(np.float32) # transposing to (Channel, Width, Height)
         
         target_fname = '{}_target.png'.format(tag) # find the target image that corresponds with the scene by hash
         target_fname = os.readlink(target_fname)
         target_img = cv2.imread(target_fname)
+        target_img = cv2.cvtColor(target_img, cv2.COLOR_RGB2BGR)
         # Crop the target image
         target_img = self.crop(target_img)
         target_img = self._resize_img(target_img, 224, 224) # Can remove later
@@ -51,8 +53,8 @@ class Dataset(TorchDataset):
         bb = np.load(bb_fname)
 
         # bb - [x_min, y_min, x_max, y_max]
-        bb[2] = (bb[2] - bb[0]) / self.img_width
-        bb[3] = (bb[3] - bb[1]) / self.img_height
+        bb[2] = bb[2] / self.img_width
+        bb[3] = bb[3] / self.img_height
 
         bb[0] /= self.img_width
         bb[1] /= self.img_height

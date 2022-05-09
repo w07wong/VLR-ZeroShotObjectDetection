@@ -76,9 +76,13 @@ class FeatureNet(nn.Module):
 
         self.fc1 = nn.Linear(2048, 256)
         self.bb1 = nn.Linear(10000, 4096)
+        self.dropout1 = nn.Dropout(p=0.5)  
         self.bb2 = nn.Linear(4096, 4096)
+        self.dropout2 = nn.Dropout(p=0.5)
         self.bb3 = nn.Linear(4096, 2048)
-        self.bb4 = nn.Linear(2048, 4)
+        self.dropout3 = nn.Dropout(p=0.5)
+        # self.bb4 = nn.Linear(2048, 4)
+        self.bb4 = nn.Linear(2048, 1)
 
     def forward_scene(self, scene, bb):
         scene_normalized = (scene - self.scene_mean) / self.scene_std
@@ -89,9 +93,8 @@ class FeatureNet(nn.Module):
         if bb is not None:
             bb = [{'boxes': torch.unsqueeze(box, dim=0)} for box in bb]
         scene_rpn_boxes, scene_rpn_losses = self.faster_rcnn_rpn(ImageList(scene_normalized, image_shapes), scene_features, bb)
-
         roi_pool = self.faster_rcnn_roi_pool(scene_features, scene_rpn_boxes, image_shapes)
-        return roi_pool, scene_rpn_boxes
+        return roi_pool, scene_rpn_boxes, scene_rpn_losses
 
     def forward_target(self, target):
         target_normalized = (target - self.target_mean) / self.target_std
@@ -105,40 +108,54 @@ class FeatureNet(nn.Module):
         else:
             bb = None
 
-        scene, scene_rpn_boxes = self.forward_scene(scene_img, bb)
+        scene, scene_rpn_boxes, scene_rpn_losses = self.forward_scene(scene_img, bb)
+        # print(scene.shape)
         scene = F.avg_pool2d(scene, scene.shape[2])
+        # print(scene.shape)
         scene = scene.view(scene_img.shape[0], -1, scene.shape[1], scene.shape[2], scene.shape[3]).squeeze()
-        # if not self.training:
-        #     scene = scene.unsqueeze(0)
+        if not self.training:
+            scene = scene.unsqueeze(0)
         scene = F.normalize(scene, p=2.0, dim=2)
 
         target = self.forward_target(target_img).squeeze()
         target = self.fc1(target)
-        # if not self.training:
-        #     target = target.unsqueeze(0)
+        if not self.training:
+            target = target.unsqueeze(0)
         target = F.normalize(target, p=2.0, dim=1)
 
         output = torch.einsum('bcd,bd->bc', scene, target)
+        output = F.normalize(output, p=2.0, dim=1)
         output = F.softmax(output, dim=1).unsqueeze(2)
         scene_rpn_boxes = torch.stack(scene_rpn_boxes)
-        scene_rpn_boxes[:, 0] /= 640
-        scene_rpn_boxes[:, 2] /= 640
-        scene_rpn_boxes[:, 1] /= 480
-        scene_rpn_boxes[:, 3] /= 480
+        scene_rpn_boxes[0, :, 0] /= 640
+        scene_rpn_boxes[0, :, 2] /= 640
+        scene_rpn_boxes[0, :, 1] /= 480
+        scene_rpn_boxes[0, :, 3] /= 480
+        scene_rpn_boxes.requires_grad = True
+        # print(scene_rpn_boxes)
+        # print(torch.max(scene_rpn_boxes), torch.min(scene_rpn_boxes))
         output = torch.cat((output, scene_rpn_boxes), dim=2)
         if output.shape[1] < 2000:
             output = torch.cat((output, torch.full((output.shape[0], 2000 - output.shape[1], output.shape[2]), 0).to(self._device)), dim=1)
 
         x = output.view(output.shape[0], -1)
+        # print(torch.max(x), torch.min(x))
         x = self.bb1(x)
+        # x = self.dropout1(x)
         x = F.relu(x)
         x = self.bb2(x)
+        # x = self.dropout2(x)
         x = F.relu(x)
         x = self.bb3(x)
+        # x = self.dropout3(x)
         x = F.relu(x)
         x = self.bb4(x)
+        
+        #idx_pred = torch.clamp(x, min=0, max=1)
+        # idx_pred = torch.sigmoid(x)
+        return x, scene_rpn_boxes[0], scene_rpn_losses
         # return torch.clamp(x, min=0, max=1)
-        return x
+        # return x
 
 
         return output

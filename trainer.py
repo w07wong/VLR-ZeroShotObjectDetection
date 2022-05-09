@@ -93,8 +93,9 @@ class Trainer(object):
         self._feature_net.to(self._device)
         self._bb_net.to(self._device)
 
-        #self._feature_optimizer = torch.optim.Adam(self._feature_net.parameters(), lr=self._feature_base_lr, betas=(TrainingConstants.ADAM_BETA1, TrainingConstants.ADAM_BETA2))
+        # self._feature_optimizer = torch.optim.Adam(self._feature_net.parameters(), lr=self._feature_base_lr, betas=(TrainingConstants.ADAM_BETA1, TrainingConstants.ADAM_BETA2))
         self._feature_optimizer = torch.optim.Adadelta(self._feature_net.parameters(), lr=self._feature_base_lr)
+        # self._feature_optimizer = torch.optim.SGD(self._feature_net.parameters(), lr=self._feature_base_lr, momentum=0.9, weight_decay=0.0005)
         self._feature_scheduler = StepLR(self._feature_optimizer, step_size=self._feature_lr_step_size, gamma=self._feature_lr_decay_rate)
         self._bb_optimizer = torch.optim.Adam(self._bb_net.parameters(), lr=self._bb_base_lr, betas=(TrainingConstants.ADAM_BETA1, TrainingConstants.ADAM_BETA2))
         # self._bb_optimizer = torch.optim.Adadelta(self._bb_net.parameters(), lr=self._bb_base_lr)
@@ -142,11 +143,27 @@ class Trainer(object):
             
             self._feature_optimizer.zero_grad()
             
-            bb_output = self._feature_net((scene_img, target_img, bb_original))
+            bb_idx, scene_rpn_boxes, scene_rpn_losses = self._feature_net((scene_img, target_img, bb_original))
+            bb_output = torch.index_select(scene_rpn_boxes, 0, (torch.clamp(bb_idx, min=0, max=1) * (len(scene_rpn_boxes) - 1)).squeeze().long())
             print('pred: {}, gt: {}'.format(bb_output[-1], bb[-1]))
-            bb_loss = self._bb_criterion(bb_output, bb)
+            bb_loss = self._bb_criterion(bb_output, bb) + scene_rpn_losses['loss_objectness'] + scene_rpn_losses['loss_rpn_box_reg']
+            '''
+            if torch.min(bb_output[:, 0]) < 0 or torch.max(bb_output[:, 0]) >= 1:
+                bb_loss += 10
+            if torch.min(bb_output[:, 1]) < 0 or torch.max(bb_output[:, 1]) >= 1:
+                bb_loss += 10
+            if torch.min(bb_output[:, 2]) < 0 or torch.max(bb_output[:, 2]) >= 1:
+                bb_loss += 10
+            if torch.min(bb_output[:, 3]) < 0 or torch.max(bb_output[:, 3]) >= 1:
+                bb_loss += 10
+            '''
             # iou, diou = compute_diou(bb_output, bb)
             # bb_loss += 10 * iou
+            for idx in bb_idx:
+                if idx < 0:
+                    bb_loss += (0 - idx)[0]
+                if idx > 1:
+                    bb_loss += (idx - 1)[0]
             bb_loss.backward()
             self._feature_optimizer.step()
 
@@ -165,31 +182,32 @@ class Trainer(object):
                 bb_train_losses.append(bb_loss.item())
 
             # for i in range(scene_img.shape[0]):
-            for i in range(5):
-                pred_bb = bb_output[i]
-                x_min = max(0, pred_bb[0].item())
-                x_max = min(1.0, pred_bb[0].item()+pred_bb[2].item())
-                y_min = max(0, pred_bb[1].item())
-                y_max = min(1.0, pred_bb[1].item()+pred_bb[3].item())
+            if batch_idx % 100 == 0:
+                for i in range(5):
+                    pred_bb = bb_output[i]
+                    x_min = max(0, pred_bb[0].item())
+                    x_max = min(1.0, pred_bb[2].item())
+                    y_min = max(0, pred_bb[1].item())
+                    y_max = min(1.0, pred_bb[3].item())
 
-                # Plot image to wandb
-                scene_wandb = scene_img[i].cpu().detach().numpy()
-                scene_wandb = scene_wandb.transpose(1, 2, 0)
-                wandb.log({"image_proposals": wandb.Image(scene_wandb, boxes={
-                    "proposals": {
-                        "box_data": [{"position": {"minX": x_min, "minY": y_min, "maxX": x_max, "maxY": y_max}, "class_id": 0}],
-                        "class_labels": {0: "prediction"}
-                    }
-                })})
-                gt_x_min, gt_y_min, gt_x_max, gt_y_max = bb[i].cpu().detach().numpy()
-                gt_x_max += gt_x_min
-                gt_y_max += gt_y_min 
-                wandb.log({"image_gt": wandb.Image(scene_wandb, boxes={
-                    "ground_truth": {
-                        "box_data": [{"position": {"minX": gt_x_min, "minY": gt_y_min, "maxX": gt_x_max, "maxY": gt_y_max}, "class_id": 0}],
-                        "class_labels": {0: "ground_truth"}
-                    }
-                })})
+                    # Plot image to wandb
+                    scene_wandb = scene_img[i].cpu().detach().numpy()
+                    scene_wandb = scene_wandb.transpose(1, 2, 0)
+                    wandb.log({"image_proposals": wandb.Image(scene_wandb, boxes={
+                        "proposals": {
+                            "box_data": [{"position": {"minX": x_min, "minY": y_min, "maxX": x_max, "maxY": y_max}, "class_id": 0}],
+                            "class_labels": {0: "prediction"}
+                        }
+                    })})
+                    gt_x_min, gt_y_min, gt_x_max, gt_y_max = bb[i].cpu().detach().numpy()
+                    # gt_x_max += gt_x_min
+                    # gt_y_max += gt_y_min 
+                    wandb.log({"image_gt": wandb.Image(scene_wandb, boxes={
+                        "ground_truth": {
+                            "box_data": [{"position": {"minX": gt_x_min, "minY": gt_y_min, "maxX": gt_x_max, "maxY": gt_y_max}, "class_id": 0}],
+                            "class_labels": {0: "ground_truth"}
+                        }
+                    })})
 
         self._log_metric(epoch, 'train/epoch_bb_loss', bb_train_losses)
 
@@ -205,7 +223,11 @@ class Trainer(object):
                 bb = bb.to(self._device)
                 bb_original = bb_original.to(self._device)
                 
-                bb_output = self._feature_net((scene_img, target_img, bb_original))
+                # bb_output = self._feature_net((scene_img, target_img, bb_original))
+                bb_output, scene_rpn_boxes, scene_rpn_losses = self._feature_net((scene_img, target_img, bb_original))
+                bb_output = torch.index_select(scene_rpn_boxes, 0, bb_output.squeeze().long())
+ 
+                # bb_loss = self._bb_criterion(bb_output, bb)
                 bb_loss = self._bb_criterion(bb_output, bb)
                 bb_eval_losses.append(bb_loss.item())
 
@@ -215,7 +237,7 @@ class Trainer(object):
         self._setup()
         for epoch in range(1, self._num_epochs+1):
             self._train(epoch)
-            self._eval(epoch)
+            # self._eval(epoch)
             self._feature_scheduler.step()
 
             self._native_logger.info('')
