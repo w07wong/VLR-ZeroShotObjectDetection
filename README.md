@@ -1,5 +1,5 @@
 # VLR-ZeroShotObjectDetection
-[Project Website](https://sites.google.com/andrew.cmu.edu/zeroshotobjectdetection/home?authuser=1)
+##[Project Website](https://sites.google.com/andrew.cmu.edu/zeroshotobjectdetection/home?authuser=1)
 
 ## Approaches
 Branches `approach_0`, `approach_1`, and `approach_2` contain the code to the corresponding approach described on the project website. The SIFT feature matching baseline can be found under `sift` and can be run with `eval_sift.py`.
