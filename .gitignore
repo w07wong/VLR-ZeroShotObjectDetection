@@ -1,2 +1,5 @@
 nets/
 wandb/
+data/
+datasets/
+
