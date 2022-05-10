@@ -15,9 +15,6 @@ def bbox_transform(deltas, weights):
     dw = deltas[:, 2::4] / ww
     dh = deltas[:, 3::4] / wh
 
-    dw = torch.clamp(dw, max=cfg.BBOX_XFORM_CLIP)
-    dh = torch.clamp(dh, max=cfg.BBOX_XFORM_CLIP)
-
     pred_ctr_x = dx
     pred_ctr_y = dy
     pred_w = torch.exp(dw)

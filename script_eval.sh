@@ -1,0 +1,1 @@
+python eval.py /home/rohanc/vlr/project/dataset/YCB/output/test/ --feature_net nets/feature_net_bb_net_05-08-2022_17\:15\:41/68_feature_net.pth --bb_net nets/feature_net_bb_net_05-08-2022_17\:15\:41/68_bb_net.pth  --cuda
