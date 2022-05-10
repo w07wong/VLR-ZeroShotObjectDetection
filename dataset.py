@@ -81,6 +81,10 @@ class Dataset(TorchDataset):
             img = cv2.resize(img, (self.img_width, self.img_height))
         return img
 
+    def _crop_coords(self, img):
+        y_nonzero, x_nonzero, _ = np.nonzero(img)
+        return [np.min(y_nonzero), np.max(y_nonzero), np.min(x_nonzero), np.max(x_nonzero)]
+
     def __getitem__(self, idx):
         scene_fname = self.rows[idx][0] # this is how we index the dataset
         #tag = scene_fname[:scene_fname.rfind('_')] # this should extract only the hash from the filename (i.e. 000 from 000_scene.png)

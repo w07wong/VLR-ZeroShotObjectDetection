@@ -140,7 +140,11 @@ class Trainer(object):
         feature_train_losses = []
         bb_train_losses = []
 
+<<<<<<< HEAD
         for batch_idx, (scene_img, target_img, bb,_) in enumerate(self._train_data_loader):
+=======
+        for batch_idx, (scene_img, target_img, bb, crop_coords) in enumerate(self._train_data_loader):
+>>>>>>> ac6cd9ffe60ebaade69544ffecb4ef9e2eb9215b
             scene_img = scene_img.to(self._device)
             target_img = target_img.to(self._device)
 
@@ -150,8 +154,20 @@ class Trainer(object):
             self._feature_optimizer.zero_grad()
             self._bb_optimizer.zero_grad()
             
+<<<<<<< HEAD
 
             feature_output = self._feature_net((scene_img, target_img))
+=======
+            ''' DOT PRODUCT FOR FEATURE NET'''
+            # feature_output = self._feature_net((scene_img, target_img))
+            ''' CONVOLUTION FOR FEATURE NET '''
+            scene_features = self._feature_net.forward_scene(scene_img)
+            target_features = self._feautre_net.forward_target(target_img)
+            # Crop target features using crop coordinates
+            target_features = target_features[:, :, crop_coords[0]:crop_coords[1], crop_coords[2]:crop_coords[3]]
+            feature_output = F.conv2d(scene_features, target_features)
+
+>>>>>>> ac6cd9ffe60ebaade69544ffecb4ef9e2eb9215b
             bb_output = self._bb_net(feature_output)
             print(bb_output, bb)
             #bb_output[:,2] += bb_output[:,0]
@@ -159,9 +175,22 @@ class Trainer(object):
 
             ''' Compute bounding box loss using bounding box regression loss. '''
             # bb loss: https://towardsdatascience.com/bounding-box-prediction-from-scratch-using-pytorch-a8525da51ddc
+<<<<<<< HEAD
             bb_loss = 100*self._bb_criterion(bb_output, bb.float())
             #iou, diou = compute_diou(bb_output.float(), bb.float())
             #bb_loss += iou
+=======
+            bb_output_ = bb_output.clone()
+            bb_ = bb.clone()
+            bb_output_[:,2] += bb_output_[:,0]
+            bb_output_[:,3] += bb_output_[:,1]
+            bb_[:,2] += bb_[:,0]
+            bb_[:,3] += bb_[:,1]
+
+            bb_loss = self._bb_criterion(bb_output, bb).sum(1).mean()
+            #_, diou = compute_diou(bb_output, bb)
+            #bb_loss += 10*diou
+>>>>>>> ac6cd9ffe60ebaade69544ffecb4ef9e2eb9215b
             bb_loss.backward()
             self._bb_optimizer.step()
             self._feature_optimizer.step()
@@ -172,6 +201,7 @@ class Trainer(object):
             # # TODO: can we vectorize this?
             feature_loss = torch.tensor([-1])
 
+<<<<<<< HEAD
             if epoch > 100:
                 #self._feature_optimizer.zero_grad() # Zero out feature output gradients again just in case?
                 #self._bb_optimizer.zero_grad()
@@ -208,6 +238,28 @@ class Trainer(object):
                 feature_loss.backward()
                 self._feature_optimizer.step()
                 #self._bb_optimizer.zero_grad()
+=======
+            if epoch > 1:
+              for i in range(len(bb_output)):
+                  pred_bb = bb_output[i]
+                  x_min = int(np.floor(max(0, pred_bb[0].item()*scene_img.shape[3])))  # scene_img : [B, C, H, W]
+                  width = int(np.ceil(max(0, pred_bb[2].item()*scene_img.shape[3])))
+                  x_max = int(np.ceil(min(scene_img.shape[3], x_min + width + 1)))
+                  # x_max = int(np.ceil(min(scene_img.shape[2], pred_bb[1].item() + 1)))
+                  y_min = int(np.floor(max(0, pred_bb[1].item()*scene_img.shape[2])))
+                  height = int(np.ceil(max(0, pred_bb[3].item()*scene_img.shape[2])))
+                  y_max = int(np.ceil(min(scene_img.shape[2], y_min + height + 1)))
+                  # y_max = int(np.ceil(min(scene_img.shape[3], pred_bb[3].item() + 1)))
+                  try:
+                      scene_img[i] = F.interpolate(scene_img[i, :, y_min:y_max, x_min:x_max].unsqueeze(0), size=(scene_img.shape[2], scene_img.shape[3]), mode='bilinear')
+                  except:
+                      print(x_min, x_max, y_min, y_max, pred_bb, scene_img.shape)
+
+              bb_feature_map = self._feature_net.module.forward_scene(scene_img)
+              feature_loss = self._feature_criterion(target_feature_map, bb_feature_map).sum(1).mean()
+              feature_loss.backward()
+              self._feature_optimizer.step()
+>>>>>>> ac6cd9ffe60ebaade69544ffecb4ef9e2eb9215b
 
 
             if batch_idx % self._log_interval == 0:
@@ -238,13 +290,21 @@ class Trainer(object):
         bb_eval_losses = []
         with torch.no_grad():
             i = 0
-            for batch_idx, (scene_img, target_img, bb) in enumerate(self._val_data_loader):
+            for batch_idx, (scene_img, target_img, bb, crop_coords) in enumerate(self._val_data_loader):
                 i += 1
                 scene_img = scene_img.to(self._device)
                 target_img = target_img.to(self._device)
                 bb = bb.to(self._device)
                 
-                feature_output = self._feature_net((scene_img, target_img))
+                ''' DOT PRODUCT FOR FEATURE NET'''
+                # feature_output = self._feature_net((scene_img, target_img))
+                ''' CONVOLUTION FOR FEATURE NET '''
+                scene_features = self._feature_net.forward_scene(scene_img)
+                target_features = self._feautre_net.forward_target(target_img)
+                # Crop target features using crop coordinates
+                target_features = target_features[:, :, crop_coords[0]:crop_coords[1], crop_coords[2]:crop_coords[3]]
+                feature_output = F.conv2d(scene_features, target_features)
+                
                 bb_output = self._bb_net(feature_output)
                 #bb_output[:,2] += bb_output[:,0]
                 #bb_output[:,3] += bb_output[:,1]
@@ -257,6 +317,7 @@ class Trainer(object):
 
                 if epoch > 10:
 
+<<<<<<< HEAD
                   for j in range(len(bb_output)):
                       pred_bb = bb_output[j]
                       x_min = int(np.floor(max(0, pred_bb[0].item()*scene_img.shape[3])))
@@ -268,6 +329,19 @@ class Trainer(object):
                       #y_max = int(np.ceil(min(scene_img.shape[3], y_min + height + 1)))
                       # y_max = int(np.ceil(min(scene_img.shape[3], pred_bb[3].item() + 1)))
                       scene_img[j] = F.interpolate(scene_img[j, :, y_min:y_max, x_min:x_max].unsqueeze(0), size=(scene_img.shape[2], scene_img.shape[3]), mode='bilinear')
+=======
+                  for i in range(len(bb_output)):
+                      pred_bb = bb_output[i]
+                      x_min = int(np.floor(max(0, pred_bb[0].item())))
+                      width = int(np.ceil(max(0, pred_bb[2].item())))
+                      x_max = int(np.ceil(min(scene_img.shape[3], x_min + width + 1)))
+                      # x_max = int(np.ceil(min(scene_img.shape[2], pred_bb[1].item() + 1)))
+                      y_min = int(np.floor(max(0, pred_bb[1].item())))
+                      height = int(np.ceil(max(0, pred_bb[3].item())))
+                      y_max = int(np.ceil(min(scene_img.shape[2], y_min + height + 1)))
+                      # y_max = int(np.ceil(min(scene_img.shape[3], pred_bb[3].item() + 1)))
+                      scene_img[i] = F.interpolate(scene_img[i, :, y_min:y_max, x_min:x_max].unsqueeze(0), size=(scene_img.shape[2], scene_img.shape[3]), mode='bilinear')
+>>>>>>> ac6cd9ffe60ebaade69544ffecb4ef9e2eb9215b
                   bb_feature_map = self._feature_net.module.forward_scene(scene_img)
                   feature_loss = self._feature_criterion(target_feature_map, bb_feature_map)
 
