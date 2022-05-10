@@ -1,3 +1,5 @@
 nets/
+wandb/
 data/
 datasets/
+

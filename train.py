@@ -116,9 +116,10 @@ if __name__ == '__main__':
     else:
         device = DeviceConstants.CPU
 
-    dataset = Dataset(data_dir)
+    dataset = Dataset(data_dir, is_train=True)
 
-    feature_net = FeatureNet(dataset.scene_mean, dataset.scene_std, dataset.target_mean, dataset.target_std, name=TrainingConstants.FEATURE_NET_NAME)
+    #feature_net = FeatureNet(dataset.scene_mean, dataset.scene_std, dataset.target_mean, dataset.target_std, name=TrainingConstants.FEATURE_NET_NAME)
+    feature_net = FeatureNet(name=TrainingConstants.FEATURE_NET_NAME)
     bb_net = BoundingBoxNet(name=TrainingConstants.BOUNDING_BOX_NET_NAME)
 
     trainer = Trainer(feature_net,
